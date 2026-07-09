@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(node -e \"require\\('soap'\\); console.log\\('soap OK'\\)\")",
+      "Bash(npm list *)",
+      "Bash(dir \"C:\\\\oracle\")",
+      "Bash(dir \"C:\\\\instantclient*\")",
+      "Bash(where oci.dll)",
+      "PowerShell(Get-ChildItem \"C:\\\\app\\\\Oracle Client for Microsoft Tools\\\\\" -ErrorAction SilentlyContinue | Select-Object Name; \\(Get-Item \"C:\\\\app\\\\Oracle Client for Microsoft Tools\\\\oci.dll\"\\).VersionInfo | Select-Object FileDescription, ProductVersion)"
+    ]
+  }
+}
