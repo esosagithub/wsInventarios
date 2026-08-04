@@ -27,6 +27,10 @@ DB_CONNECT_STRING=<host>:<puerto>/<servicio>
 # Puerto de la aplicación
 PORT=3001
 
+# Cache diario de UPC por tienda
+UPC_CACHE_DIRECTORY=docs/MCU
+UPC_CACHE_TIMEZONE=America/Guayaquil
+
 # Autenticación Basic Auth (servicios existentes)
 AUTH_USERNAME=<usuario>
 AUTH_PASSWORD=<contraseña>
