@@ -20,11 +20,11 @@ const PORT = process.env.PORT || 3001;
 app.use(express.json({ limit: '50mb' }));
 
 // Rutas
-app.use('/api', piqueoRoutes);
-app.use('/api', procesarEscaneosRoutes);
+app.use('/api/inventarios', piqueoRoutes);
+app.use('/api/inventarios', procesarEscaneosRoutes);
 app.use('/api/faq', faqRoutes);
-app.use('/api', upcRoutes);
-app.use('/api', tercerConteoRoutes);
+app.use('/api/inventarios', upcRoutes);
+app.use('/api/inventarios', tercerConteoRoutes);
 app.use('/api', reportCouponRoutes);
 app.use('/api', qrRoutes);
 app.use('/vtex', ventasWebRoutes);
