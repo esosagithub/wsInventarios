@@ -2,15 +2,10 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 
 const express = require('express');
 const db = require('../config/database');
-const dbVtex = require('../config/databaseVtex');
 const piqueoRoutes = require('./routes/piqueoRoutes');
 const procesarEscaneosRoutes = require('./routes/procesarEscaneosRoutes');
-const faqRoutes = require('./routes/faqRoutes');
 const upcRoutes = require('./routes/upcRoutes');
-const tercerConteoRoutes = require('./routes/tercerConteoRoutes'); // ⬅️ NUEVO
-const reportCouponRoutes = require('./routes/reportCouponRoutes');
-const qrRoutes = require('./routes/qrRoutes');
-const ventasWebRoutes = require('./routes/ventasWebRoutes');
+const tercerConteoRoutes = require('./routes/tercerConteoRoutes');
 
 
 const app = express();
@@ -22,12 +17,8 @@ app.use(express.json({ limit: '50mb' }));
 // Rutas
 app.use('/api/inventarios', piqueoRoutes);
 app.use('/api/inventarios', procesarEscaneosRoutes);
-app.use('/api/faq', faqRoutes);
 app.use('/api/inventarios', upcRoutes);
 app.use('/api/inventarios', tercerConteoRoutes);
-app.use('/api', reportCouponRoutes);
-app.use('/api', qrRoutes);
-app.use('/vtex', ventasWebRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {
@@ -44,8 +35,6 @@ app.get('/pool-stats', (req, res) => {
 async function startServer() {
   try {
     await db.initialize();
-    await dbVtex.initialize();
-    // (Report DB eliminado: se usa el pool principal `config/database.js`)
     // Crear el servidor y guardarlo en variable global
     const server = app.listen(PORT, () => {
       console.log(`Servidor corriendo en http://localhost:${PORT}`);
@@ -53,7 +42,7 @@ async function startServer() {
 
     // Guardar referencia al servidor
     global.server = server;
-    
+
   } catch (error) {
     console.error('Error al iniciar el servidor:', error);
     process.exit(1);
@@ -63,7 +52,7 @@ async function startServer() {
 // Manejo de cierre graceful
 async function gracefulShutdown(signal) {
   console.log(`\n${signal} recibido. Cerrando aplicación gracefully...`);
-  
+
   try {
     // Cerrar servidor HTTP si existe
     if (global.server) {
@@ -81,8 +70,7 @@ async function gracefulShutdown(signal) {
 
     // Cerrar pools de conexiones
     await db.close();
-    await dbVtex.close();
-    
+
     console.log('Aplicación cerrada correctamente');
     process.exit(0);
   } catch (error) {
