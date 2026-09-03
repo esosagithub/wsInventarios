@@ -2,6 +2,12 @@ const crypto = require('crypto');
 const db = require('../../config/database');
 const oracledb = require('oracledb');
 
+const TRANSACTION_OPTIONS = { autoCommit: false };
+const TRANSACTION_OBJECT_OPTIONS = {
+  ...TRANSACTION_OPTIONS,
+  outFormat: oracledb.OUT_FORMAT_OBJECT
+};
+
 function validarEstructuraJSON(data) {
   const errores = [];
 
@@ -118,7 +124,7 @@ async function buscarLoteProcesado(connection, fingerprint) {
     FROM procesos_escaneo_lotes_tbl
     WHERE fingerprint = :fingerprint
       AND estado = 'PROCESADO'
-  `, { fingerprint }, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+  `, { fingerprint }, TRANSACTION_OBJECT_OPTIONS);
 
   return result.rows.length ? result.rows[0].PROCESO_ID : null;
 }
@@ -133,7 +139,7 @@ async function obtenerSesionesExistentes(connection, sessions) {
     FROM sesiones_escaneo_tbl
     WHERE section_name IN (${placeholders})
     FOR UPDATE
-  `, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+  `, binds, TRANSACTION_OBJECT_OPTIONS);
 
   const sessionIds = result.rows.map(row => row.SESION_ID);
   const ordenes = new Map();
@@ -145,7 +151,7 @@ async function obtenerSesionesExistentes(connection, sessions) {
       FROM barcodes_escaneo_tbl
       WHERE sesion_id IN (${orderBinds.placeholders})
       GROUP BY sesion_id
-    `, orderBinds.binds, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+    `, orderBinds.binds, TRANSACTION_OBJECT_OPTIONS);
 
     orderResult.rows.forEach(row => ordenes.set(String(row.SESION_ID), Number(row.ULTIMO_ORDEN)));
   }
@@ -212,7 +218,6 @@ async function procesarEscaneo(req, res) {
     const itemsRecibidos = sessions.reduce((total, session) => total + session.barcodes.length, 0);
 
     connection = await db.getConnection();
-    connection.autoCommit = false;
 
     const procesoExistente = await buscarLoteProcesado(connection, fingerprint);
     if (procesoExistente !== null) {
@@ -253,7 +258,7 @@ async function procesarEscaneo(req, res) {
       end_time: data.process_summary.end_time,
       json_completo: JSON.stringify(data),
       proceso_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }
-    });
+    }, TRANSACTION_OPTIONS);
 
     const procesoId = procesoResult.outBinds.proceso_id[0];
 
@@ -271,7 +276,7 @@ async function procesarEscaneo(req, res) {
         proceso_id: procesoId,
         device_id: data.device_info.device_id,
         items_recibidos: itemsRecibidos
-      });
+      }, TRANSACTION_OPTIONS);
     } catch (error) {
       if (error.errorNum !== 1) throw error;
 
@@ -302,7 +307,7 @@ async function procesarEscaneo(req, res) {
           cantidad: session.barcodes.length,
           end_time: session.end_time,
           sesion_id: sesion.sesion_id
-        });
+        }, TRANSACTION_OPTIONS);
       } else {
         const sesionResult = await connection.execute(`
           INSERT INTO sesiones_escaneo_tbl (
@@ -323,7 +328,7 @@ async function procesarEscaneo(req, res) {
           end_time: session.end_time,
           scan_count: session.barcodes.length,
           sesion_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }
-        });
+        }, TRANSACTION_OPTIONS);
 
         sesion = {
           sesion_id: sesionResult.outBinds.sesion_id[0],
@@ -352,14 +357,14 @@ async function procesarEscaneo(req, res) {
           SEQ_BARCODES_ESCANEO.NEXTVAL, :sesion_id, :proceso_id,
           :codigo_barras, :orden_escaneo, CURRENT_TIMESTAMP
         )
-      `, barcodeBinds);
+      `, barcodeBinds, TRANSACTION_OPTIONS);
     }
 
     await connection.execute(`
       UPDATE procesos_escaneo_lotes_tbl
       SET estado = 'PROCESADO', fecha_procesado = CURRENT_TIMESTAMP
       WHERE fingerprint = :fingerprint
-    `, { fingerprint });
+    `, { fingerprint }, TRANSACTION_OPTIONS);
 
     await connection.commit();
     console.log(`process-scan guardado; proceso=${procesoId}; items=${itemsRecibidos}; duracion_ms=${Date.now() - inicio}`);

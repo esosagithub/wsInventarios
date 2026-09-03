@@ -10,6 +10,15 @@ const generationsInProgress = new Map();
 
 let cleanupInProgress = null;
 
+class CacheGenerationInProgressError extends Error {
+  constructor(storeKey) {
+    super(`La generacion del cache UPC para la tienda ${storeKey} ya esta en progreso`);
+    this.name = 'CacheGenerationInProgressError';
+    this.code = 'UPC_CACHE_GENERATION_IN_PROGRESS';
+    this.storeKey = storeKey;
+  }
+}
+
 function getCurrentDate() {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: CACHE_TIMEZONE,
@@ -107,8 +116,11 @@ async function getOrCreateStoreProducts({ store, dblink, loadProducts }) {
   const cachedProducts = await readCache(filePath, currentDate, store, dblink);
   if (cachedProducts) return { products: cachedProducts, source: 'file' };
 
-  const generationKey = `${currentDate}_${buildStoreKey(store)}_${sanitizeKeyPart(dblink)}`;
-  if (generationsInProgress.has(generationKey)) return generationsInProgress.get(generationKey);
+  const storeKey = buildStoreKey(store);
+  const generationKey = `${currentDate}_${storeKey}_${sanitizeKeyPart(dblink)}`;
+  if (generationsInProgress.has(generationKey)) {
+    throw new CacheGenerationInProgressError(storeKey);
+  }
 
   const generation = (async () => {
     const productsFromFile = await readCache(filePath, currentDate, store, dblink);
@@ -137,8 +149,26 @@ async function getOrCreateStoreProducts({ store, dblink, loadProducts }) {
     return { products, source: 'database' };
   })().finally(() => generationsInProgress.delete(generationKey));
 
-  generationsInProgress.set(generationKey, generation);
+  generationsInProgress.set(generationKey, {
+    generation,
+    dblink,
+    storeKey,
+    startedAt: Date.now()
+  });
   return generation;
 }
 
-module.exports = { getOrCreateStoreProducts };
+function getActiveGenerations() {
+  const now = Date.now();
+  return Array.from(generationsInProgress.values(), entry => ({
+    dblink: entry.dblink,
+    tienda: entry.storeKey,
+    duracion_ms: now - entry.startedAt
+  }));
+}
+
+module.exports = {
+  getOrCreateStoreProducts,
+  getActiveGenerations,
+  CacheGenerationInProgressError
+};
