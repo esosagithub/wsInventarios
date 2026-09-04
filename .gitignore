@@ -32,3 +32,8 @@ build/
 # Temporal
 *.tmp
 .cache
+tmp/
+
+# Cache diario generado por /api/inventarios/upcs-por-cedula
+docs/MCU/*.json
+docs/MCU/*.tmp
